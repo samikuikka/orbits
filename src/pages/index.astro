@@ -103,7 +103,44 @@ import Layout from '../layouts/Layout.astro';
 });
 
 
+/* AFRAME.registerSystem('binary-orbit-system', {
+    init: function () {
+        this.entities = [];
+    },
 
+    registerMe: function (el) {
+        this.entities.push(el);
+    },
+
+    unregisterMe: function (el) {
+        const index = this.entities.indexOf(el);
+        if (index !== -1) {
+            this.entities.splice(index, 1);
+        }
+    },
+
+    tick: function (time, deltaTime) {
+        if (this.entities.length < 2) return; // Ensure we have two entities to work with
+		console.log('got here')
+        // Assuming entities[0] and entities[1] are the two orbiting objects
+        const entityA = this.entities[0];
+        const entityB = this.entities[1];
+
+        // Perform your orbital dynamics calculations here, ensuring you're using the positions
+        // from the same frame to calculate forces, velocities, and new positions.
+        // This is a conceptual example; you'll need to integrate your physics calculations.
+
+        // Example of getting positions (you would include your force calculations here)
+        const posA = new THREE.Vector3();
+        entityA.object3D.getWorldPosition(posA);
+        const posB = new THREE.Vector3();
+        entityB.object3D.getWorldPosition(posB);
+
+        // After calculating the new positions based on gravitational forces and velocities:
+        // entityA.object3D.position.set(newPosX_A, newPosY_A, newPosZ_A);
+        // entityB.object3D.position.set(newPosX_B, newPosY_B, newPosZ_B);
+    }
+}); */
 
   AFRAME.registerComponent('binary-orbit', {
     schema: {
@@ -114,7 +151,11 @@ import Layout from '../layouts/Layout.astro';
     init: function() {
       this.velocity = new THREE.Vector3(this.data.initialVelocity.x, this.data.initialVelocity.y, this.data.initialVelocity.z);
       this.other = null; // Other entity to orbit around
+	  //this.system.registerMe(this.el); // Register with the system
     },
+	remove: function() {
+		this.system.unregisterMe(this.el); // Unregister with the system
+	},
     tick: function(time, deltaTime) {
       if (!this.other) {
         // Assume the other entity is the one not being this entity
