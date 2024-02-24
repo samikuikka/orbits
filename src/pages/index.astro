@@ -1,0 +1,141 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Welcome to Astro.">
+	<a-scene physics="driver: ammo; debug: false; debugDrawMode: 1;">
+		<a-entity id="sphere1" binary-orbit="initialVelocity: 0 0 0.02; mass: 3000000000"   geometry="primitive: sphere; radius: 0.75"
+		position="0 -5 0"></a-entity>
+		<a-entity id="sphere2" binary-orbit="initialVelocity: 0 0 -0.02; mass: 3000000000"  geometry="primitive: sphere; radius: 1.5"
+		light="type: point; color: #ffddaa; intensity: 10; distance: 30"
+		material="color: #ffa000; shader: flat"        position="0 5 0"></a-entity>
+		 
+		<a-entity id="camera" follow-midpoint camera look-controls position="0 0 0"></a-entity>
+<!-- 		<a-entity id="orbits-container" d-orbit="radius: 5; period: 5000; inclination: 0.01" geometry="primitive: sphere; radius: 1.5" position="0 0 0"></a-entity>
+		<a-entity id="orbits-container" d-orbit="radius: 10; period: 4000; inclination: 0.03" geometry="primitive: sphere; radius: 1.5" position="0 0 0"></a-entity>
+		<a-entity id="orbits-container" d-orbit="radius: 3; period: 3000; inclination: 0.05" geometry="primitive: sphere; radius: 1.5" position="0 0 0"></a-entity>
+		<a-entity id="orbits-container" d-orbit="radius: 15; period: 2000; inclination: 2" geometry="primitive: sphere; radius: 1.5" position="0 0 0"></a-entity> -->
+		<a-sky color="#13151a"></a-sky>
+	  </a-scene>
+</Layout>
+
+<script>
+	declare const AFRAME: any;
+	declare const THREE: any;
+
+	AFRAME.registerComponent('orbit-around-camera', {
+    schema: {
+      radius: {type: 'number', default: 5},
+      speed: {type: 'number', default: 0.1}, // Speed of the orbit
+      verticalSpeed: {type: 'number', default: 0.05} // Speed of the vertical oscillation
+    },
+    init: function() {
+      this.theta = 0; // Angle in radians for horizontal movement
+      this.phi = 0; // Angle in radians for vertical movement
+    },
+    tick: function(time, timeDelta) {
+      // Horizontal orbit
+      this.theta += this.data.speed * (timeDelta / 1000);
+      const x = Math.cos(this.theta) * this.data.radius;
+      const z = Math.sin(this.theta) * this.data.radius;
+      
+      // Vertical oscillation
+      this.phi += this.data.verticalSpeed * (timeDelta / 1000);
+      const y = Math.sin(this.phi) * (this.data.radius / 2); // Adjust for less vertical movement
+
+      this.el.setAttribute('position', `${x} ${y} ${z}`);
+    }
+  });
+
+	 // Register a new component to A-Frame for following the midpoint
+	/*  AFRAME.registerComponent('follow-midpoint', {
+    init: function() {
+      // Get references to the objects and camera
+      this.object1 = document.getElementById('sphere1');
+      this.object2 = document.getElementById('sphere2');
+      this.camera = this.el; // Since this component is attached to the camera
+    },
+    tick: function() {
+      // Ensure objects are valid
+      if (!this.object1 || !this.object2 || !this.camera) return;
+      let pos1 = new THREE.Vector3();
+      let pos2 = new THREE.Vector3();
+      
+      // Use object3D.getWorldPosition to ensure global position is used
+      pos1.copy(this.object1.object3D.getWorldPosition(pos1));
+      pos2.copy(this.object2.object3D.getWorldPosition(pos2));
+
+      // Calculate midpoint
+      let midpoint = pos1.add(pos2).multiplyScalar(0.5);
+      // Update camera position
+      this.camera.object3D.position.set(midpoint.x, midpoint.y, -midpoint.z);
+    }
+  }); */
+
+  AFRAME.registerComponent('d-orbit', {
+    schema: {
+        period: {type: 'number', default: 5000},
+        radius: {type: 'number', default: 5},
+        target: {type: 'selector', default: '[camera]'}, // Assumes your scene has an element with the camera attribute
+    },
+    init: function() {
+        this.elapsedTime = 0; // Track the elapsed time
+    },
+    tick: function(time, deltaTime) {
+        this.elapsedTime += deltaTime;
+
+        // Calculate the current angle based on the elapsed time and period
+        const angle = (this.elapsedTime / this.data.period) * Math.PI * 2;
+
+        // Assuming the target is the camera and it's located at the origin (0, 0, 0)
+        const targetPosition = this.data.target.object3D.position;
+
+        // Calculate new position
+        const x = targetPosition.x + Math.cos(angle) * this.data.radius;
+        const y = targetPosition.y; // Keep it at the same height as the camera for simplicity
+        const z = targetPosition.z + Math.sin(angle) * this.data.radius;
+
+        // Update the entity's position
+        this.el.object3D.position.set(x, y, z);
+
+        // Optional: Adjust this part if you want the entity to face towards the center of the orbit or any other direction
+    }
+});
+
+
+
+
+  AFRAME.registerComponent('binary-orbit', {
+    schema: {
+      mass: {type: 'number', default: 2}, // Assume equal mass for simplicity
+      initialVelocity: {type: 'vec3', default: {x: 0, y: 0, z: 0}}, // Initial tangential velocity,
+	  G: {type: 'number', default: 6.67430e-11}, // Gravitational constant, scaled for visualization
+    },
+    init: function() {
+      this.velocity = new THREE.Vector3(this.data.initialVelocity.x, this.data.initialVelocity.y, this.data.initialVelocity.z);
+      this.other = null; // Other entity to orbit around
+    },
+    tick: function(time, deltaTime) {
+      if (!this.other) {
+        // Assume the other entity is the one not being this entity
+        this.other = this.el.id === "sphere1" ? document.querySelector("#sphere2") : document.querySelector("#sphere1");
+      }
+      const otherPos = new THREE.Vector3();
+      this.other.object3D.getWorldPosition(otherPos);
+      const myPos = new THREE.Vector3();
+      this.el.object3D.getWorldPosition(myPos);
+      // Calculate gravitational force direction
+      const forceDirection = otherPos.sub(myPos).normalize();
+      const distance = myPos.distanceTo(otherPos);
+	  const G = this.data.G;
+	  const F = G * (this.data.mass * this.data.mass) / (distance * distance);
+	  const a =  forceDirection.multiplyScalar(F / this.data.mass);
+	  this.velocity.add(a.multiplyScalar(deltaTime / 1000))
+
+      // Update position based on velocity
+      const newPos = myPos.add(this.velocity);
+      this.el.setAttribute('position', {x: newPos.x, y: newPos.y, z: newPos.z});
+    }
+  });
+
+  </script>
